@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
                 printf("Unknown options -%c\n", c);
                 break;
             default:
+                print_usage(argv);
                 return STATUS_ERROR;
         }
     }
