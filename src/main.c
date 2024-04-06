@@ -19,12 +19,14 @@ int main(int argc, char *argv[])
     char *addstring = NULL;
     bool newfile = false;
     bool list = false;
+    bool delete = false;
+    char *deletestring = NULL;
     int c;
     int file_desc = -1;
     struct dbheader_t *header = NULL;
     struct employee_t *employees = NULL;
 
-    while ((c =getopt(argc, argv, "nf:a:l"))!= -1) {
+    while ((c =getopt(argc, argv, "nf:a:ld:")) != -1) {
         switch(c) {
             case 'f':
                 filepath = optarg;
@@ -37,6 +39,10 @@ int main(int argc, char *argv[])
                 break;
             case 'l':
                 list = true;
+                break;
+            case 'd':
+                delete = true;
+                deletestring = optarg;
                 break;
             case '?':
                 printf("Unknown options -%c\n", c);
@@ -90,7 +96,16 @@ int main(int argc, char *argv[])
     if (list) {
         list_employees(header, employees);
     }
-    output_file(file_desc, header, employees);
+
+    // if delete, we need to know the original count
+    // of records so we can truncate the file.
+    int originalCount = header->count;
+
+    if (delete) {
+        employees = delete_employee(header, employees, deletestring);
+    }
+
+    output_file(file_desc, header, employees, originalCount);
 
     return 0;
 }

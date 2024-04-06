@@ -11,16 +11,17 @@
 #include "common.h"
 #include "parse.h"
 
-int output_file(int fd, struct dbheader_t *header, struct employee_t *employees) {
+int output_file(int fd, struct dbheader_t *header, struct employee_t *employees, unsigned short originalCount) {
     if (fd < 0) {
         printf("Got a bad file descriptor from the user\n");
         return STATUS_ERROR;
     }
 
     int realcount = header->count;
+    unsigned int realsize = (sizeof(struct dbheader_t) + sizeof(struct employee_t) * realcount);
 
     header->magic = htonl(header->magic);
-    header->filesize = htonl(sizeof(struct dbheader_t) + sizeof(struct employee_t) * header->count);
+    header->filesize = htonl(realsize);
     header->count = htons(header->count);
     header->version = htons(header->version);
 
@@ -28,10 +29,16 @@ int output_file(int fd, struct dbheader_t *header, struct employee_t *employees)
 
     write(fd, header, sizeof(struct dbheader_t));
 
-    for (int i=0; i < realcount; ++i) {
+    int i;
+    for (i=0; i < realcount; ++i) {
         employees[i].hours = htonl(employees[i].hours);
         write(fd, &employees[i], sizeof(struct employee_t));
     }
+
+    if (originalCount > realcount) {
+        ftruncate(fd, realsize);
+    }
+
     return STATUS_SUCCESS;
 }
 int create_db_header(int fd, struct dbheader_t **headerOut) {
@@ -137,6 +144,35 @@ int add_employee(struct dbheader_t *header, struct employee_t *employees, char *
     employees[header->count-1].hours = atoi(hours);
 
     return STATUS_SUCCESS;
+}
+
+struct employee_t* delete_employee(struct dbheader_t *header, struct employee_t *employees, char *toRemove) {
+
+    unsigned short i,count = 0;
+
+    for (i = 0; i < header->count; ++i) {
+        if(strcmp(employees[i].name, toRemove) == 0) {
+            count++;
+        }
+        printf("Employee %s\n", employees[i].name);
+    }
+
+    if (count == 0) {
+        printf("Employee %s not found\n", toRemove);
+        return employees;
+    }
+
+    struct employee_t *newEmployees = calloc(header->count - count, sizeof(struct employee_t));
+    int k = 0;
+    for (i = 0; i < header->count; i++) {
+        if(strcmp(employees[i].name, toRemove) != 0) {
+            newEmployees[k++] = employees[i];
+        }
+    }
+
+    header->count -= count;
+    free(employees);
+    return newEmployees;
 }
 
 void list_employees(struct dbheader_t *header, struct employee_t *employees) {
