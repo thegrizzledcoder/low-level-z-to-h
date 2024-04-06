@@ -15,34 +15,34 @@ void print_usage(char *argv[]) {
 
 int main(int argc, char *argv[])
 {
-    char *filepath = NULL;
-    char *addstring = NULL;
-    bool newfile = false;
+    char *file_path = NULL;
+    char *add_string = NULL;
+    bool new_file = false;
     bool list = false;
     bool delete = false;
-    char *deletestring = NULL;
+    unsigned int id;
     int c;
-    int file_desc = -1;
-    struct dbheader_t *header = NULL;
-    struct employee_t *employees = NULL;
+    int file_desc;
+    struct db_header_t *header = NULL;
+    struct node_t *employees = NULL;
 
     while ((c =getopt(argc, argv, "nf:a:ld:")) != -1) {
         switch(c) {
             case 'f':
-                filepath = optarg;
+                file_path = optarg;
                 break;
             case 'n':
-                newfile = true;
+                new_file = true;
                 break;
             case 'a':
-                addstring = optarg;
+                add_string = optarg;
                 break;
             case 'l':
                 list = true;
                 break;
             case 'd':
                 delete = true;
-                deletestring = optarg;
+                id = strtoul(optarg, NULL, 10);
                 break;
             case '?':
                 printf("Unknown options -%c\n", c);
@@ -53,24 +53,24 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (filepath == NULL) {
+    if (file_path == NULL) {
         printf("Filepath is a required argument\n");
         print_usage(argv);
     }
 
-    if (newfile) {
-        file_desc = create_db_file(filepath);
+    if (new_file) {
+        file_desc = create_db_file(file_path);
         if (file_desc == STATUS_ERROR) {
             printf("Unable to create database file\n");
             return STATUS_ERROR;
         }
 
-        if (create_db_header(file_desc, &header) == STATUS_ERROR) {
+        if (create_db_header(&header) == STATUS_ERROR) {
             printf("Failed to create db header\n");
             return STATUS_ERROR;
         }
     } else {
-        file_desc = open_db_file(filepath);
+        file_desc = open_db_file(file_path);
         if(file_desc == STATUS_ERROR) {
             printf("Unable to open database file\n");
             return STATUS_ERROR;
@@ -87,25 +87,24 @@ int main(int argc, char *argv[])
         return STATUS_ERROR;
     }
 
-    if (addstring) {
+    if (add_string) {
         header->count++;
-        employees = realloc(employees, header->count*(sizeof(struct employee_t)));
-        add_employee(header, employees, addstring);
+        add_employee(&employees, add_string);
     }
 
     if (list) {
-        list_employees(header, employees);
+        list_employees(&employees);
     }
 
-    // if delete, we need to know the original count
-    // of records so we can truncate the file.
+    // if we delete, we need to know the original count
+    // of records so that we can truncate the file.
     int originalCount = header->count;
 
     if (delete) {
-        employees = delete_employee(header, employees, deletestring);
+        delete_employee(header, &employees, id);
     }
 
-    output_file(file_desc, header, employees, originalCount);
+    output_file(file_desc, header, &employees, originalCount);
 
     return 0;
 }
