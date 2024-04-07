@@ -12,6 +12,7 @@ struct db_header_t {
     unsigned short version;
     unsigned short count;
     unsigned int filesize;
+    unsigned int next_id;
 };
 
 struct employee_t {
@@ -26,12 +27,15 @@ struct node_t {
     struct node_t *next;
 };
 
+static const struct employee_t EmptyEmployee;
+static const struct node_t EmptyNode;
+
 int create_db_header(struct db_header_t **header_out);
 int validate_db_header(int fd, struct db_header_t **header_out);
-int read_employees(int fd, struct db_header_t *, struct node_t **employees_out);
+int read_employees(int fd, struct db_header_t *, struct node_t **ptr_list_head);
 int output_file(int fd, struct db_header_t *, struct node_t **, unsigned short originalCount);
-void add_employee(struct node_t **employees, char *add_string);
-int delete_employee(struct db_header_t *, struct node_t **employees, unsigned int id);
+void add_employee(struct db_header_t *, struct node_t **ptr_list_head, char *add_string);
+int delete_employee(struct db_header_t *, struct node_t **ptr_list_head, unsigned int id);
 void list_employees(struct node_t **);
 
 #endif //PARSE_H

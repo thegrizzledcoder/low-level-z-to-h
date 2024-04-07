@@ -11,9 +11,19 @@
 #include "common.h"
 #include "parse.h"
 
-int output_file(int fd, struct db_header_t *header, struct node_t **employees, unsigned short originalCount) {
+int output_file(int fd, struct db_header_t *header, struct node_t **ptr_list_head, const unsigned short originalCount) {
     if (fd < 0) {
         printf("Got a bad file descriptor from the user\n");
+        return STATUS_ERROR;
+    }
+
+    if (header == NULL) {
+        printf("No header defined\n");
+        return STATUS_ERROR;
+    }
+
+    if (ptr_list_head == NULL) {
+        printf("No linked list defined\n");
         return STATUS_ERROR;
     }
 
@@ -27,18 +37,29 @@ int output_file(int fd, struct db_header_t *header, struct node_t **employees, u
 
     lseek(fd, 0, SEEK_SET);
 
-    write(fd, header, sizeof(struct db_header_t));
+    if (!write(fd, header, sizeof(struct db_header_t))) {
+        perror("write");
+        return STATUS_ERROR;
+    }
 
-    struct node_t *temp = *employees;
+    struct node_t *temp = *ptr_list_head;
     while(temp != NULL) {
         temp->data.hours = htonl(temp->data.hours);
         temp->data.id  = htonl(temp->data.id);
-        write(fd, &temp->data, sizeof(struct employee_t));
-        temp = temp->next;
+        if (write(fd, &temp->data, sizeof(struct employee_t)))
+            temp = temp->next;
+        else
+        {
+            perror("write");
+            return STATUS_ERROR;
+        }
     }
 
     if (originalCount > real_count) {
-        ftruncate(fd, real_size);
+        if(!ftruncate(fd, real_size)) {
+            perror("ftruncate");
+            return STATUS_ERROR;
+        }
     }
 
     return STATUS_SUCCESS;
@@ -54,6 +75,7 @@ int create_db_header(struct db_header_t **header_out) {
     header->count = 0;
     header->magic = HEADER_MAGIC;
     header->filesize = sizeof(struct db_header_t);
+    header->next_id = 0;
 
     *header_out = header;
 
@@ -82,6 +104,7 @@ int validate_db_header(int fd, struct db_header_t **header_out) {
     header->count = ntohs(header->count);
     header->magic = ntohl(header->magic);
     header->filesize = ntohl(header->filesize);
+    header->next_id = ntohl(header->next_id);
 
     if (header->magic != HEADER_MAGIC) {
         printf("Invalid header magic\n");
@@ -108,26 +131,29 @@ int validate_db_header(int fd, struct db_header_t **header_out) {
     return STATUS_SUCCESS;
 }
 
-int read_employees(int fd, struct db_header_t * header, struct node_t **employees_out) {
+int read_employees(int fd, struct db_header_t * header, struct node_t **ptr_list_head) {
     if (fd < 0) {
         printf("Got a bad FD from the user\n");
         return STATUS_ERROR;
     }
 
     if (header->count == 0) {
-        *employees_out = NULL;
+        *ptr_list_head = NULL;
         return STATUS_SUCCESS;
     }
 
     int count = header->count;
 
-    struct employee_t *employees = calloc(count, sizeof(struct employee_t));
+    struct employee_t *employees = (struct employee_t*)calloc(count, sizeof(struct employee_t));
     if (employees == NULL) {
         printf("Malloc failed\n");
         return STATUS_ERROR;
     }
 
-    read(fd, employees, count * sizeof(struct employee_t));
+    if(!read(fd, employees, count * sizeof(struct employee_t))){
+        perror("read");
+        return STATUS_ERROR;
+    }
 
     for(int i = 0; i < count; i++) {
         employees[i].hours = ntohl(employees[i].hours);
@@ -135,41 +161,47 @@ int read_employees(int fd, struct db_header_t * header, struct node_t **employee
     }
 
     struct node_t *head = (struct node_t*)malloc(sizeof(struct node_t));
+    head->data = EmptyEmployee;
+    head->next = NULL;
     struct node_t *temp = head;
     for (int i = 0; i < count; i++) {
         temp->data = employees[i];
         if(i < (count-1)) {
             temp->next = (struct node_t*)malloc(sizeof(struct node_t));
+            temp->next->next = NULL;
+            temp->next->data = EmptyEmployee;
         }
         temp = temp->next;
     }
 
-    *employees_out = head;
+    *ptr_list_head = head;
+
+    free(employees);
 
     return STATUS_SUCCESS;
 }
 
-void add_employee(struct node_t **employees, char *add_string) {
-    char *id = strtok(add_string, ",");
-    char *name = strtok(NULL, ",");
+void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, char *add_string) {
+    char *name = strtok(add_string, ",");
     char *addr = strtok(NULL, ",");
     char *hours = strtok(NULL, ",");
-    char *endPtr;
-    printf("%s %s %s %s\n", id, name, addr, hours);
+    unsigned int id = ++header->next_id;
+
+    printf("%d %s %s %s\n", id, name, addr, hours);
 
     struct node_t *new_node;
-    struct node_t *last = *employees;
+    struct node_t *last = *ptr_list_head;
     new_node = (struct node_t*)malloc(sizeof(struct node_t));
     struct employee_t new_emp = {0};
     strncpy(new_emp.name, name, sizeof(new_emp.name));
     strncpy(new_emp.address, addr, sizeof(new_emp.address));
-    new_emp.hours = strtol(hours, NULL, 10);
-    new_emp.id = strtol(id, &endPtr, 10);
+    new_emp.hours = strtoul(hours, NULL, 10);
+    new_emp.id = id;
     new_node->next = NULL;
     new_node->data = new_emp;
 
-    if (*employees == NULL) {
-        *employees = new_node;
+    if (*ptr_list_head == NULL) {
+        *ptr_list_head = new_node;
         return;
     }
 
@@ -178,11 +210,11 @@ void add_employee(struct node_t **employees, char *add_string) {
     last->next = new_node;
 }
 
-int delete_employee(struct db_header_t *header, struct node_t **employees, unsigned int id) {
-    struct node_t *prev, *temp = *employees;
+int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, unsigned int id) {
+    struct node_t *prev, *temp = *ptr_list_head;
     // If the employee is HEAD
     if (temp != NULL && temp->data.id == id) {
-        *employees = temp->next;
+        *ptr_list_head = temp->next;
         free(temp);
         header->count--;
         return STATUS_SUCCESS;
@@ -206,8 +238,12 @@ int delete_employee(struct db_header_t *header, struct node_t **employees, unsig
     return STATUS_SUCCESS;
 }
 
-void list_employees(struct node_t **employees) {
-    struct node_t *temp = *employees;
+void list_employees(struct node_t **ptr_list_head) {
+    if(ptr_list_head == NULL) {
+        printf("Node list is not initialized\n");
+        return;
+    }
+    struct node_t *temp = *ptr_list_head;
     while (temp != NULL) {
         printf("Employee ID: %d\n", temp->data.id);
         printf("\tName: %s\n", temp->data.name);

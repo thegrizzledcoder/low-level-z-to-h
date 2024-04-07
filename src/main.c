@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     int c;
     int file_desc;
     struct db_header_t *header = {0};
-    struct node_t *employees = {0};
+    struct node_t *ptr_list_head = {0};
 
     while ((c =getopt(argc, argv, "nf:a:ld:")) != -1) {
         switch(c) {
@@ -82,18 +82,18 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (read_employees(file_desc, header, &employees) != STATUS_SUCCESS) {
-        printf("Failed to read employees\n");
+    if (read_employees(file_desc, header, &ptr_list_head) != STATUS_SUCCESS) {
+        printf("Failed to read ptr_list_head\n");
         return STATUS_ERROR;
     }
 
     if (add_string) {
         header->count++;
-        add_employee(&employees, add_string);
+        add_employee(&ptr_list_head, add_string);
     }
 
     if (list) {
-        list_employees(&employees);
+        list_employees(&ptr_list_head);
     }
 
     // if we delete, we need to know the original count
@@ -101,13 +101,13 @@ int main(int argc, char *argv[])
     int originalCount = header->count;
 
     if (delete) {
-        delete_employee(header, &employees, id);
+        delete_employee(header, &ptr_list_head, id);
     }
 
-    output_file(file_desc, header, &employees, originalCount);
+    output_file(file_desc, header, &ptr_list_head, originalCount);
 
     free(header);
-    free(employees);
+    free(ptr_list_head);
 
     return 0;
 }
