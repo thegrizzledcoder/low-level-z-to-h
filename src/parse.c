@@ -75,7 +75,7 @@ int create_db_header(struct db_header_t **header_out) {
     header->count = 0;
     header->magic = HEADER_MAGIC;
     header->filesize = sizeof(struct db_header_t);
-    header->next_id = 0;
+    header->next_id = 1;
 
     *header_out = header;
 
@@ -131,7 +131,16 @@ int validate_db_header(int fd, struct db_header_t **header_out) {
     return STATUS_SUCCESS;
 }
 
-int read_employees(int fd, struct db_header_t * header, struct node_t **ptr_list_head) {
+struct node_t* create_node(struct employee_t *employee)
+{
+    struct node_t *node = malloc(sizeof(struct node_t));
+    node->data = *employee;
+    node->next = NULL;
+
+    return node;
+}
+
+int read_employees(const int fd, const struct db_header_t * header, struct node_t **ptr_list_head) {
     if (fd < 0) {
         printf("Got a bad FD from the user\n");
         return STATUS_ERROR;
@@ -142,9 +151,9 @@ int read_employees(int fd, struct db_header_t * header, struct node_t **ptr_list
         return STATUS_SUCCESS;
     }
 
-    int count = header->count;
+    const int count = header->count;
 
-    struct employee_t *employees = (struct employee_t*)calloc(count, sizeof(struct employee_t));
+    struct employee_t *employees = calloc(count, sizeof(struct employee_t));
     if (employees == NULL) {
         printf("Malloc failed\n");
         return STATUS_ERROR;
@@ -160,18 +169,17 @@ int read_employees(int fd, struct db_header_t * header, struct node_t **ptr_list
         employees[i].id = ntohl(employees[i].id);
     }
 
-    struct node_t *head = (struct node_t*)malloc(sizeof(struct node_t));
-    head->data = EmptyEmployee;
-    head->next = NULL;
-    struct node_t *temp = head;
+    struct node_t *head = NULL;
+    struct node_t *tail = NULL;
     for (int i = 0; i < count; i++) {
-        temp->data = employees[i];
-        if(i < (count-1)) {
-            temp->next = (struct node_t*)malloc(sizeof(struct node_t));
-            temp->next->next = NULL;
-            temp->next->data = EmptyEmployee;
+        struct node_t *new_node = create_node(&employees[i]);
+        if (head == NULL)
+        {
+            head = new_node;
+        } else {
+            tail->next = new_node;
         }
-        temp = temp->next;
+        tail = new_node;
     }
 
     *ptr_list_head = head;
@@ -185,13 +193,12 @@ void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, cha
     char *name = strtok(add_string, ",");
     char *addr = strtok(NULL, ",");
     char *hours = strtok(NULL, ",");
-    unsigned int id = ++header->next_id;
+    const unsigned int id = header->next_id++;
 
     printf("%d %s %s %s\n", id, name, addr, hours);
 
-    struct node_t *new_node;
     struct node_t *last = *ptr_list_head;
-    new_node = (struct node_t*)malloc(sizeof(struct node_t));
+    struct node_t *new_node = malloc(sizeof(struct node_t));
     struct employee_t new_emp = {0};
     strncpy(new_emp.name, name, sizeof(new_emp.name));
     strncpy(new_emp.address, addr, sizeof(new_emp.address));
@@ -210,8 +217,9 @@ void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, cha
     last->next = new_node;
 }
 
-int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, unsigned int id) {
-    struct node_t *prev, *temp = *ptr_list_head;
+int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, const unsigned int id) {
+    struct node_t *temp = *ptr_list_head;
+    struct node_t *prev = temp;
     // If the employee is HEAD
     if (temp != NULL && temp->data.id == id) {
         *ptr_list_head = temp->next;
@@ -227,7 +235,7 @@ int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, u
     }
 
     // If the employee isn't present
-    if (temp == NULL) return STATUS_NOT_FOUND;
+    if (temp == NULL || prev == NULL) return STATUS_NOT_FOUND;
 
     // Remove the node
     prev->next = temp->next;

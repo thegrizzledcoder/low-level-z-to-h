@@ -13,14 +13,22 @@ void print_usage(char *argv[]) {
     printf("\t-f - (required) path to database file\n");
 }
 
-int main(int argc, char *argv[])
+void free_linked_list(struct node_t *head) {
+    while(head != NULL) {
+        struct node_t* temp = head;
+        head = head ->next;
+        free(temp);
+    }
+}
+
+int main(const int argc, char *argv[])
 {
-    char *file_path = NULL;
+    const char *file_path = NULL;
     char *add_string = NULL;
     bool new_file = false;
     bool list = false;
     bool delete = false;
-    unsigned int id;
+    unsigned int id = 0;
     int c;
     int file_desc;
     struct db_header_t *header = {0};
@@ -89,7 +97,7 @@ int main(int argc, char *argv[])
 
     if (add_string) {
         header->count++;
-        add_employee(&ptr_list_head, add_string);
+        add_employee(header, &ptr_list_head, add_string);
     }
 
     if (list) {
@@ -107,7 +115,8 @@ int main(int argc, char *argv[])
     output_file(file_desc, header, &ptr_list_head, originalCount);
 
     free(header);
-    free(ptr_list_head);
+
+    free_linked_list(ptr_list_head);
 
     return 0;
 }
