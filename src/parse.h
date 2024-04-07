@@ -22,12 +22,12 @@ struct employee_t {
 };
 
 struct node_t {
-    struct employee_t *value;
+    struct employee_t data;
     struct node_t *next;
 };
 
-int create_db_header(struct db_header_t **headerOut);
-int validate_db_header(int fd, struct db_header_t **headerOut);
+int create_db_header(struct db_header_t **header_out);
+int validate_db_header(int fd, struct db_header_t **header_out);
 int read_employees(int fd, struct db_header_t *, struct node_t **employees_out);
 int output_file(int fd, struct db_header_t *, struct node_t **, unsigned short originalCount);
 void add_employee(struct node_t **employees, char *add_string);

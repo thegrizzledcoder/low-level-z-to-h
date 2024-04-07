@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
     unsigned int id;
     int c;
     int file_desc;
-    struct db_header_t *header = NULL;
-    struct node_t *employees = NULL;
+    struct db_header_t *header = {0};
+    struct node_t *employees = {0};
 
     while ((c =getopt(argc, argv, "nf:a:ld:")) != -1) {
         switch(c) {
@@ -105,6 +105,9 @@ int main(int argc, char *argv[])
     }
 
     output_file(file_desc, header, &employees, originalCount);
+
+    free(header);
+    free(employees);
 
     return 0;
 }

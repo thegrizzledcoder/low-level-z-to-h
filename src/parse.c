@@ -31,9 +31,9 @@ int output_file(int fd, struct db_header_t *header, struct node_t **employees, u
 
     struct node_t *temp = *employees;
     while(temp != NULL) {
-        temp->value->hours = htonl(temp->value->hours);
-        temp->value->id  = htonl(temp->value->id);
-        write(fd, temp->value, sizeof(struct employee_t));
+        temp->data.hours = htonl(temp->data.hours);
+        temp->data.id  = htonl(temp->data.id);
+        write(fd, &temp->data, sizeof(struct employee_t));
         temp = temp->next;
     }
 
@@ -43,7 +43,7 @@ int output_file(int fd, struct db_header_t *header, struct node_t **employees, u
 
     return STATUS_SUCCESS;
 }
-int create_db_header(struct db_header_t **headerOut) {
+int create_db_header(struct db_header_t **header_out) {
     struct db_header_t *header = calloc(1, sizeof(struct db_header_t));
     if (header == NULL) {
         printf("Calloc failed to create db header");
@@ -55,12 +55,12 @@ int create_db_header(struct db_header_t **headerOut) {
     header->magic = HEADER_MAGIC;
     header->filesize = sizeof(struct db_header_t);
 
-    *headerOut = header;
+    *header_out = header;
 
     return STATUS_SUCCESS;
 }
 
-int validate_db_header(int fd, struct db_header_t **headerOut) {
+int validate_db_header(int fd, struct db_header_t **header_out) {
     if (fd < 0) {
         printf("Got a bad FD from the user\n");
         return STATUS_ERROR;
@@ -95,15 +95,15 @@ int validate_db_header(int fd, struct db_header_t **headerOut) {
         return STATUS_ERROR;
     }
 
-    struct stat dbstat = {0};
-    fstat(fd, &dbstat);
-    if (header->filesize != dbstat.st_size) {
+    struct stat db_stat = {0};
+    fstat(fd, &db_stat);
+    if (header->filesize != db_stat.st_size) {
         printf("Corrupted database\n");
         free(header);
         return STATUS_ERROR;
     }
 
-    *headerOut = header;
+    *header_out = header;
 
     return STATUS_SUCCESS;
 }
@@ -137,7 +137,7 @@ int read_employees(int fd, struct db_header_t * header, struct node_t **employee
     struct node_t *head = (struct node_t*)malloc(sizeof(struct node_t));
     struct node_t *temp = head;
     for (int i = 0; i < count; i++) {
-        temp->value = &employees[i];
+        temp->data = employees[i];
         if(i < (count-1)) {
             temp->next = (struct node_t*)malloc(sizeof(struct node_t));
         }
@@ -160,13 +160,13 @@ void add_employee(struct node_t **employees, char *add_string) {
     struct node_t *new_node;
     struct node_t *last = *employees;
     new_node = (struct node_t*)malloc(sizeof(struct node_t));
-    struct employee_t *new_emp = (struct employee_t*)malloc(sizeof(struct employee_t));
-    strncpy(new_emp->name, name, sizeof(new_emp->name));
-    strncpy(new_emp->address, addr, sizeof(new_emp->address));
-    new_emp->hours = strtol(hours, NULL, 10);
-    new_emp->id = strtol(id, &endPtr, 10);
+    struct employee_t new_emp = {0};
+    strncpy(new_emp.name, name, sizeof(new_emp.name));
+    strncpy(new_emp.address, addr, sizeof(new_emp.address));
+    new_emp.hours = strtol(hours, NULL, 10);
+    new_emp.id = strtol(id, &endPtr, 10);
     new_node->next = NULL;
-    new_node->value = new_emp;
+    new_node->data = new_emp;
 
     if (*employees == NULL) {
         *employees = new_node;
@@ -181,16 +181,15 @@ void add_employee(struct node_t **employees, char *add_string) {
 int delete_employee(struct db_header_t *header, struct node_t **employees, unsigned int id) {
     struct node_t *prev, *temp = *employees;
     // If the employee is HEAD
-    if (temp != NULL && temp->value->id == id) {
+    if (temp != NULL && temp->data.id == id) {
         *employees = temp->next;
-        free(temp->value);
         free(temp);
         header->count--;
         return STATUS_SUCCESS;
     }
 
     // If the employee isn't HEAD
-    while (temp != NULL && temp->value->id != id) {
+    while (temp != NULL && temp->data.id != id) {
         prev = temp;
         temp = temp->next;
     }
@@ -201,7 +200,7 @@ int delete_employee(struct db_header_t *header, struct node_t **employees, unsig
     // Remove the node
     prev->next = temp->next;
     header->count--;
-    free(temp->value);
+
     free(temp);
 
     return STATUS_SUCCESS;
@@ -210,10 +209,10 @@ int delete_employee(struct db_header_t *header, struct node_t **employees, unsig
 void list_employees(struct node_t **employees) {
     struct node_t *temp = *employees;
     while (temp != NULL) {
-        printf("Employee ID: %d\n", temp->value->id);
-        printf("\tName: %s\n", temp->value->name);
-        printf("\tAddress: %s\n", temp->value->address);
-        printf("\tHours Worked: %d\n", temp->value->hours);
+        printf("Employee ID: %d\n", temp->data.id);
+        printf("\tName: %s\n", temp->data.name);
+        printf("\tAddress: %s\n", temp->data.address);
+        printf("\tHours Worked: %d\n", temp->data.hours);
         temp = temp->next;
     }
 }
