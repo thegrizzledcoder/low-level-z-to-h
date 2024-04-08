@@ -34,6 +34,7 @@ int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_l
     header->filesize = htonl(real_size);
     header->count = htons(header->count);
     header->version = htons(header->version);
+    header->next_id = htonl(header->next_id);
 
     lseek(file_desc, 0, SEEK_SET);
 
@@ -54,7 +55,7 @@ int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_l
         }
     }
 
-    if (!ftruncate(file_desc, real_size)) {
+    if (ftruncate(file_desc, real_size) != 0) {
         perror("ftruncate");
         return STATUS_ERROR;
     }
