@@ -11,8 +11,7 @@
 #include "common.h"
 #include "parse.h"
 
-int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_list_head,
-                const unsigned short originalCount) {
+int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_list_head) {
     if (file_desc < 0) {
         printf("Got a bad file descriptor from the user\n");
         return STATUS_ERROR;
@@ -28,8 +27,8 @@ int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_l
         return STATUS_ERROR;
     }
 
-    int real_count = header->count;
-    unsigned int real_size = (sizeof(struct db_header_t) + sizeof(struct employee_t) * real_count);
+    const int real_count = header->count;
+    const unsigned int real_size = (sizeof(struct db_header_t) + sizeof(struct employee_t) * real_count);
 
     header->magic = htonl(header->magic);
     header->filesize = htonl(real_size);
@@ -55,11 +54,9 @@ int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_l
         }
     }
 
-    if (originalCount > real_count) {
-        if (!ftruncate(file_desc, real_size)) {
-            perror("ftruncate");
-            return STATUS_ERROR;
-        }
+    if (!ftruncate(file_desc, real_size)) {
+        perror("ftruncate");
+        return STATUS_ERROR;
     }
 
     return STATUS_SUCCESS;

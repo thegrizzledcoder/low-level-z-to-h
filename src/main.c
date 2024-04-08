@@ -103,10 +103,6 @@ int main(const int argc, char *argv[]) {
         list_employees(&ptr_list_head);
     }
 
-    // if we delete, we need to know the original count
-    // of records so that we can truncate the file.
-    int originalCount = header->count;
-
     if (delete) {
         delete_employee(header, &ptr_list_head, user_id);
     }

@@ -34,7 +34,7 @@ int validate_db_header(int file_desc, struct db_header_t **header_out);
 
 int read_employees(int file_desc, const struct db_header_t *, struct node_t **ptr_list_head);
 
-int output_file(int file_desc, struct db_header_t *, struct node_t **, unsigned short originalCount);
+int output_file(int file_desc, struct db_header_t *, struct node_t **);
 
 void add_employee(struct db_header_t *, struct node_t **ptr_list_head, char *add_string);
 
