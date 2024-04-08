@@ -5,36 +5,37 @@
 
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 
 #include "file.h"
 #include "common.h"
 
+static const mode_t FILE_MODE = 0644;
+
 int create_db_file(const char *filename) {
-    int fd = open(filename, O_RDONLY);
-    if (fd != -1) {
-        close(fd);
+    int file_desc = open(filename, O_RDONLY);
+    if (file_desc != -1) {
+        close(file_desc);
         printf("File already exists\n");
         return STATUS_ERROR;
     }
 
-    fd = open(filename, O_RDWR | O_CREAT, 0644);
-    if (fd == -1) {
+    file_desc = open(filename, O_RDWR | O_CREAT, FILE_MODE);
+    if (file_desc == -1) {
         perror("open");
         return STATUS_ERROR;
     }
 
-    return fd;
+    return file_desc;
 }
 
 int open_db_file(const char *filename) {
-    const int fd = open(filename, O_RDWR, 0644);
+    const int file_desc = open(filename, O_RDWR, FILE_MODE);
 
-    if (fd == -1) {
+    if (file_desc == -1) {
         perror("open");
         return STATUS_ERROR;
     }
 
-    return fd;
+    return file_desc;
 }

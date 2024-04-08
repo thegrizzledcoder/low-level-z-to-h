@@ -11,8 +11,9 @@
 #include "common.h"
 #include "parse.h"
 
-int output_file(int fd, struct db_header_t *header, struct node_t **ptr_list_head, const unsigned short originalCount) {
-    if (fd < 0) {
+int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_list_head,
+                const unsigned short originalCount) {
+    if (file_desc < 0) {
         printf("Got a bad file descriptor from the user\n");
         return STATUS_ERROR;
     }
@@ -35,28 +36,27 @@ int output_file(int fd, struct db_header_t *header, struct node_t **ptr_list_hea
     header->count = htons(header->count);
     header->version = htons(header->version);
 
-    lseek(fd, 0, SEEK_SET);
+    lseek(file_desc, 0, SEEK_SET);
 
-    if (!write(fd, header, sizeof(struct db_header_t))) {
+    if (!write(file_desc, header, sizeof(struct db_header_t))) {
         perror("write");
         return STATUS_ERROR;
     }
 
     struct node_t *temp = *ptr_list_head;
-    while(temp != NULL) {
+    while (temp != NULL) {
         temp->data.hours = htonl(temp->data.hours);
-        temp->data.id  = htonl(temp->data.id);
-        if (write(fd, &temp->data, sizeof(struct employee_t)))
+        temp->data.id = htonl(temp->data.id);
+        if (write(file_desc, &temp->data, sizeof(struct employee_t))) {
             temp = temp->next;
-        else
-        {
+        } else {
             perror("write");
             return STATUS_ERROR;
         }
     }
 
     if (originalCount > real_count) {
-        if(!ftruncate(fd, real_size)) {
+        if (!ftruncate(file_desc, real_size)) {
             perror("ftruncate");
             return STATUS_ERROR;
         }
@@ -64,10 +64,11 @@ int output_file(int fd, struct db_header_t *header, struct node_t **ptr_list_hea
 
     return STATUS_SUCCESS;
 }
+
 int create_db_header(struct db_header_t **header_out) {
     struct db_header_t *header = calloc(1, sizeof(struct db_header_t));
     if (header == NULL) {
-        printf("Calloc failed to create db header");
+        printf("calloc failed to create db header");
         return STATUS_ERROR;
     }
 
@@ -82,8 +83,8 @@ int create_db_header(struct db_header_t **header_out) {
     return STATUS_SUCCESS;
 }
 
-int validate_db_header(int fd, struct db_header_t **header_out) {
-    if (fd < 0) {
+int validate_db_header(int file_desc, struct db_header_t **header_out) {
+    if (file_desc < 0) {
         printf("Got a bad FD from the user\n");
         return STATUS_ERROR;
     }
@@ -94,7 +95,7 @@ int validate_db_header(int fd, struct db_header_t **header_out) {
         return STATUS_ERROR;
     }
 
-    if (read(fd, header, sizeof(struct db_header_t)) != sizeof(struct db_header_t)) {
+    if (read(file_desc, header, sizeof(struct db_header_t)) != sizeof(struct db_header_t)) {
         perror("read");
         free(header);
         return STATUS_ERROR;
@@ -119,7 +120,7 @@ int validate_db_header(int fd, struct db_header_t **header_out) {
     }
 
     struct stat db_stat = {0};
-    fstat(fd, &db_stat);
+    fstat(file_desc, &db_stat);
     if (header->filesize != db_stat.st_size) {
         printf("Corrupted database\n");
         free(header);
@@ -131,8 +132,7 @@ int validate_db_header(int fd, struct db_header_t **header_out) {
     return STATUS_SUCCESS;
 }
 
-struct node_t* create_node(struct employee_t *employee)
-{
+struct node_t *create_node(struct employee_t *employee) {
     struct node_t *node = malloc(sizeof(struct node_t));
     node->data = *employee;
     node->next = NULL;
@@ -140,8 +140,8 @@ struct node_t* create_node(struct employee_t *employee)
     return node;
 }
 
-int read_employees(const int fd, const struct db_header_t * header, struct node_t **ptr_list_head) {
-    if (fd < 0) {
+int read_employees(const int file_desc, const struct db_header_t *header, struct node_t **ptr_list_head) {
+    if (file_desc < 0) {
         printf("Got a bad FD from the user\n");
         return STATUS_ERROR;
     }
@@ -159,12 +159,12 @@ int read_employees(const int fd, const struct db_header_t * header, struct node_
         return STATUS_ERROR;
     }
 
-    if(!read(fd, employees, count * sizeof(struct employee_t))){
+    if (!read(file_desc, employees, count * sizeof(struct employee_t))) {
         perror("read");
         return STATUS_ERROR;
     }
 
-    for(int i = 0; i < count; i++) {
+    for (int i = 0; i < count; i++) {
         employees[i].hours = ntohl(employees[i].hours);
         employees[i].id = ntohl(employees[i].id);
     }
@@ -173,11 +173,14 @@ int read_employees(const int fd, const struct db_header_t * header, struct node_
     struct node_t *tail = NULL;
     for (int i = 0; i < count; i++) {
         struct node_t *new_node = create_node(&employees[i]);
-        if (head == NULL)
-        {
+        if (head == NULL) {
             head = new_node;
         } else {
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "NullDereference"
+            // this will be head
             tail->next = new_node;
+#pragma clang diagnostic pop
         }
         tail = new_node;
     }
@@ -189,21 +192,24 @@ int read_employees(const int fd, const struct db_header_t * header, struct node_
     return STATUS_SUCCESS;
 }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
+
 void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, char *add_string) {
     char *name = strtok(add_string, ",");
     char *addr = strtok(NULL, ",");
     char *hours = strtok(NULL, ",");
-    const unsigned int id = header->next_id++;
+    const unsigned int user_id = header->next_id++;
 
-    printf("%d %s %s %s\n", id, name, addr, hours);
+    printf("%d %s %s %s\n", user_id, name, addr, hours);
 
     struct node_t *last = *ptr_list_head;
     struct node_t *new_node = malloc(sizeof(struct node_t));
     struct employee_t new_emp = {0};
     strncpy(new_emp.name, name, sizeof(new_emp.name));
     strncpy(new_emp.address, addr, sizeof(new_emp.address));
-    new_emp.hours = strtoul(hours, NULL, 10);
-    new_emp.id = id;
+    new_emp.hours = strtoul(hours, NULL, BASE10);
+    new_emp.id = user_id;
     new_node->next = NULL;
     new_node->data = new_emp;
 
@@ -212,16 +218,20 @@ void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, cha
         return;
     }
 
-    while (last->next != NULL) last = last->next;
+    while (last->next != NULL) {
+        last = last->next;
+    }
 
     last->next = new_node;
 }
 
-int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, const unsigned int id) {
+#pragma clang diagnostic pop
+
+int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, const unsigned int user_id) {
     struct node_t *temp = *ptr_list_head;
     struct node_t *prev = temp;
     // If the employee is HEAD
-    if (temp != NULL && temp->data.id == id) {
+    if (temp != NULL && temp->data.id == user_id) {
         *ptr_list_head = temp->next;
         free(temp);
         header->count--;
@@ -229,13 +239,15 @@ int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, c
     }
 
     // If the employee isn't HEAD
-    while (temp != NULL && temp->data.id != id) {
+    while (temp != NULL && temp->data.id != user_id) {
         prev = temp;
         temp = temp->next;
     }
 
     // If the employee isn't present
-    if (temp == NULL || prev == NULL) return STATUS_NOT_FOUND;
+    if (temp == NULL || prev == NULL) {
+        return STATUS_NOT_FOUND;
+    }
 
     // Remove the node
     prev->next = temp->next;
@@ -247,7 +259,7 @@ int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, c
 }
 
 void list_employees(struct node_t **ptr_list_head) {
-    if(ptr_list_head == NULL) {
+    if (ptr_list_head == NULL) {
         printf("Node list is not initialized\n");
         return;
     }

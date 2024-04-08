@@ -14,28 +14,27 @@ void print_usage(char *argv[]) {
 }
 
 void free_linked_list(struct node_t *head) {
-    while(head != NULL) {
-        struct node_t* temp = head;
-        head = head ->next;
+    while (head != NULL) {
+        struct node_t *temp = head;
+        head = head->next;
         free(temp);
     }
 }
 
-int main(const int argc, char *argv[])
-{
+int main(const int argc, char *argv[]) {
     const char *file_path = NULL;
     char *add_string = NULL;
     bool new_file = false;
     bool list = false;
     bool delete = false;
-    unsigned int id = 0;
-    int c;
+    unsigned int user_id = 0;
+    int char_in;
     int file_desc;
     struct db_header_t *header = {0};
     struct node_t *ptr_list_head = {0};
 
-    while ((c =getopt(argc, argv, "nf:a:ld:")) != -1) {
-        switch(c) {
+    while ((char_in = getopt(argc, argv, "nf:a:ld:")) != -1) {
+        switch (char_in) {
             case 'f':
                 file_path = optarg;
                 break;
@@ -50,10 +49,10 @@ int main(const int argc, char *argv[])
                 break;
             case 'd':
                 delete = true;
-                id = strtoul(optarg, NULL, 10);
+                user_id = strtoul(optarg, NULL, BASE10);
                 break;
             case '?':
-                printf("Unknown options -%c\n", c);
+                printf("Unknown options -%char_in\n", char_in);
                 break;
             default:
                 print_usage(argv);
@@ -79,7 +78,7 @@ int main(const int argc, char *argv[])
         }
     } else {
         file_desc = open_db_file(file_path);
-        if(file_desc == STATUS_ERROR) {
+        if (file_desc == STATUS_ERROR) {
             printf("Unable to open database file\n");
             return STATUS_ERROR;
         }
@@ -109,7 +108,7 @@ int main(const int argc, char *argv[])
     int originalCount = header->count;
 
     if (delete) {
-        delete_employee(header, &ptr_list_head, id);
+        delete_employee(header, &ptr_list_head, user_id);
     }
 
     output_file(file_desc, header, &ptr_list_head, originalCount);

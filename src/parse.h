@@ -6,6 +6,7 @@
 #define PARSE_H
 
 #define HEADER_MAGIC 0x4c4c4144
+#define MAX_STR_LEN 256
 
 struct db_header_t {
     unsigned int magic;
@@ -17,8 +18,8 @@ struct db_header_t {
 
 struct employee_t {
     unsigned int id;
-    char name[256];
-    char address[256];
+    char name[MAX_STR_LEN];
+    char address[MAX_STR_LEN];
     unsigned int hours;
 };
 
@@ -27,16 +28,20 @@ struct node_t {
     struct node_t *next;
 };
 
-static const struct employee_t EmptyEmployee;
-static const struct node_t EmptyNode;
-
 int create_db_header(struct db_header_t **header_out);
-int validate_db_header(int fd, struct db_header_t **header_out);
-int read_employees(int fd, const struct db_header_t *, struct node_t **ptr_list_head);
-int output_file(int fd, struct db_header_t *, struct node_t **, unsigned short originalCount);
+
+int validate_db_header(int file_desc, struct db_header_t **header_out);
+
+int read_employees(int file_desc, const struct db_header_t *, struct node_t **ptr_list_head);
+
+int output_file(int file_desc, struct db_header_t *, struct node_t **, unsigned short originalCount);
+
 void add_employee(struct db_header_t *, struct node_t **ptr_list_head, char *add_string);
-int delete_employee(struct db_header_t *, struct node_t **ptr_list_head, unsigned int id);
+
+int delete_employee(struct db_header_t *, struct node_t **ptr_list_head, unsigned int user_id);
+
 void list_employees(struct node_t **);
-struct node_t* create_node(struct employee_t*);
+
+struct node_t *create_node(struct employee_t *);
 
 #endif //PARSE_H
