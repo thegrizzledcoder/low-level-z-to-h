@@ -31,7 +31,7 @@ int main(const int argc, char *argv[]) {
     int char_in;
     int file_desc;
     struct db_header_t *header = {0};
-    struct node_t *ptr_list_head = {0};
+    struct node_t *head = {0};
 
     while ((char_in = getopt(argc, argv, "nf:a:ld:")) != -1) {
         switch (char_in) {
@@ -89,29 +89,29 @@ int main(const int argc, char *argv[]) {
         }
     }
 
-    if (read_employees(file_desc, header, &ptr_list_head) != STATUS_SUCCESS) {
-        printf("Failed to read ptr_list_head\n");
+    if (read_employees(file_desc, header, &head) != STATUS_SUCCESS) {
+        printf("Failed to read head\n");
         return STATUS_ERROR;
     }
 
     if (add_string) {
         header->count++;
-        add_employee(header, &ptr_list_head, add_string);
+        add_employee(header, &head, add_string);
     }
 
     if (list) {
-        list_employees(&ptr_list_head);
+        list_employees(&head);
     }
 
     if (delete) {
-        delete_employee(header, &ptr_list_head, user_id);
+        delete_employee(header, &head, user_id);
     }
 
-    output_file(file_desc, header, &ptr_list_head);
+    output_file(file_desc, header, &head);
 
     free(header);
 
-    free_linked_list(ptr_list_head);
+    free_linked_list(head);
 
     return 0;
 }

@@ -11,7 +11,7 @@
 #include "common.h"
 #include "parse.h"
 
-int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_list_head) {
+int output_file(int file_desc, struct db_header_t *header, struct node_t **p_head) {
     if (file_desc < 0) {
         printf("Got a bad file descriptor from the user\n");
         return STATUS_ERROR;
@@ -22,7 +22,7 @@ int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_l
         return STATUS_ERROR;
     }
 
-    if (ptr_list_head == NULL) {
+    if (p_head == NULL) {
         printf("No linked list defined\n");
         return STATUS_ERROR;
     }
@@ -43,7 +43,7 @@ int output_file(int file_desc, struct db_header_t *header, struct node_t **ptr_l
         return STATUS_ERROR;
     }
 
-    struct node_t *temp = *ptr_list_head;
+    struct node_t *temp = *p_head;
     while (temp != NULL) {
         temp->data.hours = htonl(temp->data.hours);
         temp->data.id = htonl(temp->data.id);
@@ -138,14 +138,14 @@ struct node_t *create_node(struct employee_t *employee) {
     return node;
 }
 
-int read_employees(const int file_desc, const struct db_header_t *header, struct node_t **ptr_list_head) {
+int read_employees(const int file_desc, const struct db_header_t *header, struct node_t **p_head) {
     if (file_desc < 0) {
         printf("Got a bad FD from the user\n");
         return STATUS_ERROR;
     }
 
     if (header->count == 0) {
-        *ptr_list_head = NULL;
+        *p_head = NULL;
         return STATUS_SUCCESS;
     }
 
@@ -176,14 +176,14 @@ int read_employees(const int file_desc, const struct db_header_t *header, struct
         } else {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "NullDereference"
-            // this will be head
+            // this will be p_head
             tail->next = new_node;
 #pragma clang diagnostic pop
         }
         tail = new_node;
     }
 
-    *ptr_list_head = head;
+    *p_head = head;
 
     free(employees);
 
@@ -193,7 +193,7 @@ int read_employees(const int file_desc, const struct db_header_t *header, struct
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
 
-void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, char *add_string) {
+void add_employee(struct db_header_t *header, struct node_t **p_head, char *add_string) {
     char *name = strtok(add_string, ",");
     char *addr = strtok(NULL, ",");
     char *hours = strtok(NULL, ",");
@@ -201,7 +201,7 @@ void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, cha
 
     printf("%d %s %s %s\n", user_id, name, addr, hours);
 
-    struct node_t *last = *ptr_list_head;
+    struct node_t *last = *p_head;
     struct node_t *new_node = malloc(sizeof(struct node_t));
     struct employee_t new_emp = {0};
     strncpy(new_emp.name, name, sizeof(new_emp.name));
@@ -211,8 +211,8 @@ void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, cha
     new_node->next = NULL;
     new_node->data = new_emp;
 
-    if (*ptr_list_head == NULL) {
-        *ptr_list_head = new_node;
+    if (*p_head == NULL) {
+        *p_head = new_node;
         return;
     }
 
@@ -225,12 +225,12 @@ void add_employee(struct db_header_t *header, struct node_t **ptr_list_head, cha
 
 #pragma clang diagnostic pop
 
-int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, const unsigned int user_id) {
-    struct node_t *temp = *ptr_list_head;
+int delete_employee(struct db_header_t *header, struct node_t **p_head, const unsigned int user_id) {
+    struct node_t *temp = *p_head;
     struct node_t *prev = temp;
     // If the employee is HEAD
     if (temp != NULL && temp->data.id == user_id) {
-        *ptr_list_head = temp->next;
+        *p_head = temp->next;
         free(temp);
         header->count--;
         return STATUS_SUCCESS;
@@ -256,12 +256,12 @@ int delete_employee(struct db_header_t *header, struct node_t **ptr_list_head, c
     return STATUS_SUCCESS;
 }
 
-void list_employees(struct node_t **ptr_list_head) {
-    if (ptr_list_head == NULL) {
+void list_employees(struct node_t **p_head) {
+    if (p_head == NULL) {
         printf("Node list is not initialized\n");
         return;
     }
-    struct node_t *temp = *ptr_list_head;
+    struct node_t *temp = *p_head;
     while (temp != NULL) {
         printf("Employee ID: %d\n", temp->data.id);
         printf("\tName: %s\n", temp->data.name);

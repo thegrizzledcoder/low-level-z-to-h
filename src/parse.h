@@ -32,13 +32,13 @@ int create_db_header(struct db_header_t **header_out);
 
 int validate_db_header(int file_desc, struct db_header_t **header_out);
 
-int read_employees(int file_desc, const struct db_header_t *, struct node_t **ptr_list_head);
+int read_employees(int file_desc, const struct db_header_t *, struct node_t **p_head);
 
 int output_file(int file_desc, struct db_header_t *, struct node_t **);
 
-void add_employee(struct db_header_t *, struct node_t **ptr_list_head, char *add_string);
+void add_employee(struct db_header_t *, struct node_t **p_head, char *add_string);
 
-int delete_employee(struct db_header_t *, struct node_t **ptr_list_head, unsigned int user_id);
+int delete_employee(struct db_header_t *, struct node_t **p_head, unsigned int user_id);
 
 void list_employees(struct node_t **);
 
