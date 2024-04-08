@@ -107,7 +107,7 @@ int main(const int argc, char *argv[]) {
         delete_employee(header, &ptr_list_head, user_id);
     }
 
-    output_file(file_desc, header, &ptr_list_head, originalCount);
+    output_file(file_desc, header, &ptr_list_head);
 
     free(header);
 
